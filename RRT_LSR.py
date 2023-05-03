@@ -16,7 +16,7 @@ from rppl_globals import *
 show_rrt_progress = True
 bidirectional = True
 print_status = False
-numlinks = 10 # number of links
+numlinks = 6 # number of links
 numobst = 6  # number of obstacles
 
 links = [1000/numlinks for i in range(numlinks)]

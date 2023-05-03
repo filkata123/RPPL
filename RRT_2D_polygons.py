@@ -108,6 +108,7 @@ while Open:
     step_to_config(I,goal) # Check for straight line
 
     if bidirectional:
+        print("Bidirectional RRT")
         while dist2(I.nodes[len(I.nodes)-1]['point'],G.nodes[len(G.nodes)-1]['point']) > stepsize:
             rc = [random.randint(0,xmax),random.randint(0,ymax)]
             step_to_config(I,rc)
@@ -118,6 +119,7 @@ while Open:
                 step_to_config(I,G.nodes[len(G.nodes)-1]['point'])
         
     else:
+        print("Goal-biased RRT")
         while dist2(I.nodes[len(I.nodes)-1]['point'], goal) > stepsize:
             if i % bias == 0:
                 rc = goal

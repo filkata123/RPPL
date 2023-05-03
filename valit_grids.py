@@ -84,6 +84,7 @@ def valit_path(graph, init, goal):
             current_node = nn
             if nn == goal:
                 goal_reached = True
+    print("Stages: " + str(i))
     return path
 
 # This corresponds to GUI button 'Draw' that runs the example.
@@ -140,6 +141,7 @@ def Draw():
             t = time.time()
             path = valit_path(G,p1index,p2index)
             print('value iteration: time elapsed: ' + str(time.time() - t) + ' seconds')
+        print("Shortest path: " + str(len(path)))
         for l in range(len(path)):
             if l > 0:
                 pygame.draw.line(screen,green,G.nodes[path[l]]['point'],G.nodes[path[l-1]]['point'],5)
