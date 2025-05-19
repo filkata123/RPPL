@@ -20,6 +20,7 @@ xmax = 800 # force a square environment
 
 screen = pygame.display.set_mode([xmax,ymax])
 use_dijkstra = False
+use_qlearning = False
 pygame.display.set_caption('Grid Planner')
 
 # value iteration constants
@@ -44,6 +45,54 @@ def generate_neighborhood_indices(radius):
             if 0 < vlen([i,j]) <= radius:
                 neighbors.append([i,j])
     return neighbors
+
+# Compute solution path from Q-table
+def q_learning_path(graph, init, goal, episodes=500, max_steps=200, alpha=0.5, gamma=0.9, epsilon=0.1):
+    # Populate Q-table with zeros
+    Q = {}
+    for u in graph.nodes:
+        for v in graph.neighbors(u):
+            Q[(u, v)] = 0.0
+
+    # Iteratively update Q-table values
+    for _ in range(episodes):
+        state = init
+        for _ in range(max_steps):
+            neighbors = list(graph.neighbors(state))
+            if not neighbors:
+                break
+            if random.random() < epsilon:
+                action = random.choice(neighbors)
+            else:
+                action = max(neighbors, key=lambda a: Q.get((state, a), 0))
+
+            reward = -graph[state][action]['weight']
+            next_state = action
+
+            next_neighbors = list(graph.neighbors(next_state))
+            max_q = max([Q.get((next_state, a), 0.0) for a in next_neighbors]) if next_neighbors else 0
+            Q[(state, action)] += alpha * (reward + gamma * max_q - Q[(state, action)])
+
+            state = next_state
+            if state == goal:
+                break
+
+    # Extract path from learned Q-values
+    path = [init]
+    current = init
+    visited = set()
+    while current != goal:
+        visited.add(current)
+        neighbors = list(graph.neighbors(current))
+        if not neighbors:
+            break
+        next_node = max(neighbors, key=lambda a: Q.get((current, a), float('-inf')))
+        if next_node in visited:
+            break  # avoid loops
+        path.append(next_node)
+        current = next_node
+
+    return path if current == goal else []
 
 # Compute the stationary cost-to-go function and return a solution path.
 def valit_path(graph, init, goal):
@@ -133,12 +182,14 @@ def Draw():
     p1index = find_closest_node(initial,G.nodes)
     p2index = find_closest_node(goal,G.nodes)
     if nx.has_path(G,p1index,p2index):
-        if use_dijkstra:
-            t = time.time()
+        t = time.time()
+        if use_qlearning:
+            path = q_learning_path(G, p1index, p2index)
+            print('Q-learning:   time elapsed:     ' + str(time.time() - t) + ' seconds')
+        elif use_dijkstra:
             path = nx.dijkstra_path(G,p1index,p2index)
             print('dijkstra:    time elapsed:     ' + str(time.time() - t) + ' seconds')
         else:
-            t = time.time()
             path = valit_path(G,p1index,p2index)
             print('value iteration: time elapsed: ' + str(time.time() - t) + ' seconds')
         print("Shortest path: " + str(len(path)))
@@ -162,13 +213,18 @@ num_of_ex = len(problines)/3
 # The rest is for the GUI.
 
 def SwitchType():
-    global use_dijkstra
+    global use_dijkstra, use_qlearning
     if use_dijkstra:
         use_dijkstra = False
-        Draw()
+        use_qlearning = True
+        print("Switched to Q-learning")
+    elif use_qlearning:
+        use_qlearning = False
+        print("Switched to Value Iteration")
     else:
         use_dijkstra = True
-        Draw()
+        print("Switched to Dijkstra")
+    Draw()
 
 def SetDims(val):
     global dims
