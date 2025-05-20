@@ -181,3 +181,4 @@ cython_debug/
 .cursorindexingignore
 
 valit_data.txt
+qlearning_path_log.txt
