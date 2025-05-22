@@ -43,21 +43,21 @@ def generate_neighborhood_indices(radius):
     k = int(radius+2)
     for i in range(-k,k):
         for j in range(-k,k):
-            if 0 < vlen([i,j]) <= radius:
+            if 0 < vlen([i,j]) <= radius: # Question: No termination action?
                 neighbors.append([i,j])
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_path(graph, init, goal, episodes=10000, max_steps=500, alpha=0.999, gamma=0.999, initial_epsilon=1):
+def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=0.999, initial_epsilon=1):
     # Populate Q-table with zeros
     Q = {}
     for u in graph.nodes:
         for v in graph.neighbors(u):
             Q[(u, v)] = 0.0
 
-    path_log = []  # (episode, path_length)
-    log_interval = 500
-    visited_node_counts = defaultdict(int)
+    # path_log = []  # (episode, path_length)
+    # log_interval = 500
+    # visited_node_counts = defaultdict(int)
 
     # Extract the best current policy (list of actions)
     # def extract_policy(Q, graph):
@@ -70,11 +70,11 @@ def q_learning_path(graph, init, goal, episodes=10000, max_steps=500, alpha=0.99
     #     return policy
     
     # Epsilon decay
-    epsilon = initial_epsilon
-    decay_rate = 0.9999
+    epsilon = 0.1 # = initial_epsilon
+    # decay_rate = 0.9999
 
     # Convergence criterion
-    # convergence_threshold = 1e-4
+    convergence_threshold = 1e-4
     # policy_stable_target = 10
     # policy_stable_count = 0
     # old_policy = extract_policy(Q, graph)
@@ -121,41 +121,44 @@ def q_learning_path(graph, init, goal, episodes=10000, max_steps=500, alpha=0.99
         # old_policy = new_policy
 
         # If the values in the Q-table haven't changed by a lot (DISABLED: or if the policy has stablised), some sort of soft convergence has been reached
-        # if max_delta < convergence_threshold: #and policy_stable_count >= policy_stable_target:
-        #     print(f"Q-learning converged at episode {episode}")
-        #     break
-
-        epsilon = max(0.05, initial_epsilon * decay_rate**episode)
+        if max_delta < convergence_threshold: #and policy_stable_count >= policy_stable_target:
+            print(f"Q-learning converged at episode {episode}")
+            break
+        
+        # for epsilon decay
+        # epsilon = max(0.05, initial_epsilon * decay_rate**episode)
 
         # Logging
-        if episode % log_interval == 0 or episode == episodes - 1:
-            temp_path = [init]
-            current = init
-            visited = set()
-            loop_nodes = []
+        # if episode % log_interval == 0 or episode == episodes - 1:
+        #     temp_path = [init]
+        #     current = init
+        #     visited = set()
+        #     loop_nodes = []
 
-            while current != goal:
-                if current in visited:
-                    loop_nodes.append(current)
-                    break
+        #     while current != goal:
+        #         if current in visited:
+        #             loop_nodes.append(current)
+        #             break
 
-                visited.add(current)
-                visited_node_counts[current] += 1
+        #         visited.add(current)
+        #         visited_node_counts[current] += 1
 
-                neighbors = list(graph.neighbors(current))
-                if not neighbors:
-                    break
+        #         neighbors = list(graph.neighbors(current))
+        #         if not neighbors:
+        #             break
 
-                next_node = max(neighbors, key=lambda a: Q.get((current, a), float('-inf')))
-                temp_path.append(next_node)
-                current = next_node
+        #         next_node = max(neighbors, key=lambda a: Q.get((current, a), float('-inf')))
+        #         temp_path.append(next_node)
+        #         current = next_node
 
-            # Record path length
-            if current == goal:
-                path_log.append((episode, len(temp_path)))
-            else:
-                path_log.append((episode, None))
+        #     # Record path length
+        #     if current == goal:
+        #         path_log.append((episode, len(temp_path)))
+        #     else:
+        #         path_log.append((episode, None))
 
+
+    # TODO: add Termination action / stay cost 
     # Extract path from learned Q-values
     path = [init]
     current = init
@@ -172,15 +175,16 @@ def q_learning_path(graph, init, goal, episodes=10000, max_steps=500, alpha=0.99
         path.append(next_node)
         current = next_node
 
+    # enable this if logging!
     # Save path length log for plotting
-    with open("qlearning_path_log.txt", "w") as f:
-        for ep, plen in path_log:
-            f.write(f"{ep},{plen}\n")
+    # with open("qlearning_path_log.txt", "w") as f:
+    #     for ep, plen in path_log:
+    #         f.write(f"{ep},{plen}\n")
 
-    print("\nMost frequently visited nodes in greedy paths:")
-    sorted_nodes = sorted(visited_node_counts.items(), key=lambda x: x[1], reverse=True)
-    for node, count in sorted_nodes[:10]:
-        print(f"Node {node} visited {count} times")
+    # print("\nMost frequently visited nodes in greedy paths:")
+    # sorted_nodes = sorted(visited_node_counts.items(), key=lambda x: x[1], reverse=True)
+    # for node, count in sorted_nodes[:10]:
+    #     print(f"Node {node} visited {count} times")
 
     return path if current == goal else []
 
