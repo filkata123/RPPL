@@ -42,7 +42,7 @@ def generate_neighborhood_indices(radius):
     k = int(radius+2)
     for i in range(-k,k):
         for j in range(-k,k):
-            if 0 < vlen([i,j]) <= radius: # Question: No termination action?
+            if 0 < vlen([i,j]) <= radius:
                 neighbors.append([i,j])
     return neighbors
 
@@ -50,23 +50,14 @@ def generate_neighborhood_indices(radius):
 def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=0.999, initial_epsilon=1):
     # Populate Q-table with zeros
     Q = {}
-    for u in graph.nodes:
-        for v in graph.neighbors(u):
-            Q[(u, v)] = 0.0
+    for s in graph.nodes:
+        for u in graph.neighbors(s):
+            Q[(s, u)] = failure_cost
+    Q[(goal, u)] = failure_cost
 
     # path_log = []  # (episode, path_length)
     # log_interval = 500
     # visited_node_counts = defaultdict(int)
-
-    # Extract the best current policy (list of actions)
-    # def extract_policy(Q, graph):
-    #     policy = {}
-    #     for state in graph.nodes:
-    #         actions = list(graph.neighbors(state))
-    #         if actions:
-    #             best_action = max(actions, key=lambda a: Q.get((state, a), float('-inf')))
-    #             policy[state] = best_action
-    #     return policy
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
@@ -74,9 +65,6 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
 
     # Convergence criterion
     convergence_threshold = 1e-4
-    # policy_stable_target = 10
-    # policy_stable_count = 0
-    # old_policy = extract_policy(Q, graph)
 
     # Iteratively update Q-table values
     for episode in range(episodes):
@@ -91,16 +79,16 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
             if random.random() < epsilon:
                 action = random.choice(neighbors)
             else:
-                action = min(neighbors, key=lambda a: Q.get((state, a), 0))
+                action = min(neighbors, key=lambda a: Q.get((state, a), failure_cost))
 
             cost = graph[state][action]['weight']
             next_state = action
 
             next_neighbors = list(graph.neighbors(next_state))
-            min_q_next = min([Q.get((next_state, a), 0.0) for a in next_neighbors]) if next_neighbors else 0
+            min_q_next = min([Q.get((next_state, a), failure_cost) for a in next_neighbors]) if next_neighbors else 0
 
             old_q = Q[(state, action)]
-            Q[(state, action)] += alpha * (cost + gamma * min_q_next - old_q)
+            Q[(state, action)] -= alpha * (cost + gamma * min_q_next - old_q)
 
             # Track maximum absolute change in Q-values per episodes
             delta = abs(Q[(state, action)] - old_q)
@@ -111,16 +99,8 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
             if state == goal:
                 break
         
-        # Convergence checks - is the policy stable?
-        # new_policy = extract_policy(Q, graph)
-        # if new_policy == old_policy:
-        #     policy_stable_count += 1
-        # else:
-        #     policy_stable_count = 0
-        # old_policy = new_policy
-
-        # If the values in the Q-table haven't changed by a lot (DISABLED: or if the policy has stablised), some sort of soft convergence has been reached
-        if max_delta < convergence_threshold: #and policy_stable_count >= policy_stable_target:
+        # If the values in the Q-table haven't changed by a lot, some sort of soft convergence has been reached
+        if max_delta < convergence_threshold:
             print(f"Q-learning converged at episode {episode}")
             break
         
@@ -157,7 +137,6 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         #         path_log.append((episode, None))
 
 
-    # TODO: add Termination action / stay cost 
     # Extract path from learned Q-values
     path = [init]
     current = init
@@ -167,7 +146,7 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         neighbors = list(graph.neighbors(current))
         if not neighbors:
             break
-        next_node = min(neighbors, key=lambda a: Q.get((current, a), float('inf')))
+        next_node = min(neighbors, key=lambda a: Q.get((current, a), failure_cost))
         if next_node in visited:
             print("Loop detected in Q-table. No path to goal available.")
             break  # avoid loops
@@ -192,7 +171,7 @@ def valit_path(graph, init, goal):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
-    set_node_attributes(graph, {goal:0.0}, 'value')
+    set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action!
     
     # main loop
     i = 0
