@@ -91,16 +91,16 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
             if random.random() < epsilon:
                 action = random.choice(neighbors)
             else:
-                action = max(neighbors, key=lambda a: Q.get((state, a), 0))
+                action = min(neighbors, key=lambda a: Q.get((state, a), 0))
 
-            reward = -graph[state][action]['weight']
+            cost = graph[state][action]['weight']
             next_state = action
 
             next_neighbors = list(graph.neighbors(next_state))
-            max_q_next = max([Q.get((next_state, a), 0.0) for a in next_neighbors]) if next_neighbors else 0
+            min_q_next = min([Q.get((next_state, a), 0.0) for a in next_neighbors]) if next_neighbors else 0
 
             old_q = Q[(state, action)]
-            Q[(state, action)] += alpha * (reward + gamma * max_q_next - old_q)
+            Q[(state, action)] += alpha * (cost + gamma * min_q_next - old_q)
 
             # Track maximum absolute change in Q-values per episodes
             delta = abs(Q[(state, action)] - old_q)
@@ -167,7 +167,7 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         neighbors = list(graph.neighbors(current))
         if not neighbors:
             break
-        next_node = max(neighbors, key=lambda a: Q.get((current, a), float('-inf')))
+        next_node = min(neighbors, key=lambda a: Q.get((current, a), float('inf')))
         if next_node in visited:
             print("Loop detected in Q-table. No path to goal available.")
             break  # avoid loops
