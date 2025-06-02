@@ -47,13 +47,18 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=0.999, initial_epsilon=1):
-    # Populate Q-table with zeros
+def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=1, initial_epsilon=1):
+    # Add an edge from the goal state to itself with 0 weight (termination action)
+    graph.add_edge(goal, goal, weight=0.0)
+    
+    # Populate Q-table with zeros - not a proper Q-table, since it's technically [state,state]
     Q = {}
-    for s in graph.nodes:
-        for u in graph.neighbors(s):
-            Q[(s, u)] = failure_cost
-    Q[(goal, u)] = failure_cost
+    for n in graph.nodes:
+        for m in graph.neighbors(n):
+            if n is goal and graph.get_edge_data(n,m)['weight'] == 0.0:
+                Q[(n, m)] = 0.0 
+            else:
+                Q[(n, m)] = failure_cost
 
     # path_log = []  # (episode, path_length)
     # log_interval = 500
@@ -88,7 +93,7 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
             min_q_next = min([Q.get((next_state, a), failure_cost) for a in next_neighbors]) if next_neighbors else 0
 
             old_q = Q[(state, action)]
-            Q[(state, action)] -= alpha * (cost + gamma * min_q_next - old_q)
+            Q[(state, action)] -= alpha * (cost + gamma * min_q_next + old_q)
 
             # Track maximum absolute change in Q-values per episodes
             delta = abs(Q[(state, action)] - old_q)
@@ -96,8 +101,6 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
                 max_delta = delta
 
             state = next_state
-            if state == goal:
-                break
         
         # If the values in the Q-table haven't changed by a lot, some sort of soft convergence has been reached
         if max_delta < convergence_threshold:
@@ -136,7 +139,7 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         #     else:
         #         path_log.append((episode, None))
 
-
+    print(Q)
     # Extract path from learned Q-values
     path = [init]
     current = init
@@ -146,11 +149,12 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         neighbors = list(graph.neighbors(current))
         if not neighbors:
             break
-        next_node = min(neighbors, key=lambda a: Q.get((current, a), failure_cost))
+        next_node = min(neighbors, key=lambda a: Q.get((current, a), float('inf')))
         if next_node in visited:
             print("Loop detected in Q-table. No path to goal available.")
-            break  # avoid loops
+            break # avoid loops
         path.append(next_node)
+        print(path)
         current = next_node
 
     # enable this if logging!
@@ -171,7 +175,7 @@ def valit_path(graph, init, goal):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
-    set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action!
+    set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action, although it is not an action to speak of.
     
     # main loop
     i = 0
