@@ -48,7 +48,8 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=0.999, initial_epsilon=1):
+def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=1, initial_epsilon=1):
+    graph.add_edge(goal, goal, weight=0.0)
     # Populate Q-table with zeros
     Q = {}
     for u in graph.nodes:
@@ -101,7 +102,7 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
             max_q_next = max([Q.get((next_state, a), 0.0) for a in next_neighbors]) if next_neighbors else 0
 
             old_q = Q[(state, action)]
-            Q[(state, action)] += alpha * (reward + gamma * max_q_next - old_q)
+            Q[(state, action)] = (1-alpha)*Q[(state, action)] + alpha * (reward + gamma * max_q_next)
 
             # Track maximum absolute change in Q-values per episodes
             delta = abs(Q[(state, action)] - old_q)
@@ -109,8 +110,8 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
                 max_delta = delta
 
             state = next_state
-            if state == goal:
-                break
+            # if state == goal:
+            #     break
         
         # Convergence checks - is the policy stable?
         # new_policy = extract_policy(Q, graph)
@@ -158,7 +159,6 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         #         path_log.append((episode, None))
 
 
-    # TODO: add Termination action / stay cost 
     # Extract path from learned Q-values
     path = [init]
     current = init
