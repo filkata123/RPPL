@@ -47,22 +47,15 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=0.999, initial_epsilon=1):
+def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999, gamma=1, initial_epsilon=1):
     # Add an edge from the goal state to itself with 0 weight (termination action)
-    #graph.add_edge(goal, goal, weight=0.0)
+    graph.add_edge(goal, goal, weight=0.0)
     
     # Populate Q-table with zeros - not a proper Q-table, since it's technically [state,state]
     Q = {}
     for n in graph.nodes:
         for m in graph.neighbors(n):
-            # if n is goal and graph.get_edge_data(n,m)['weight'] == 0.0:
-            #     Q[(n, m)] = 0.0 
-            # else:
-            Q[(n, m)] = 0.0
-
-    # path_log = []  # (episode, path_length)
-    # log_interval = 500
-    # visited_node_counts = defaultdict(int)
+            Q[(n, m)] = 1.0E10
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
@@ -81,16 +74,16 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
             if not neighbors:
                 break
 
-            if random.random() < epsilon:
-                action = random.choice(neighbors)
-            else:
-                action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
+            #if random.random() < epsilon:
+            action = random.choice(neighbors)
+            # else:
+            #action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
 
             cost = graph[state][action]['weight']
             next_state = action
 
             next_neighbors = list(graph.neighbors(next_state))
-            min_q_next = min([Q.get((next_state, a), 0.0) for a in next_neighbors]) if next_neighbors else 0
+            min_q_next = min([Q.get((next_state, a), 1.0E10) for a in next_neighbors]) if next_neighbors else 0
 
             old_q = Q[(state, action)]
             Q[(state, action)] = (1-alpha)*Q[(state, action)] + alpha * (cost + gamma * min_q_next)
@@ -112,35 +105,7 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         # for epsilon decay
         # epsilon = max(0.05, initial_epsilon * decay_rate**episode)
 
-        # Logging
-        # if episode % log_interval == 0 or episode == episodes - 1:
-        #     temp_path = [init]
-        #     current = init
-        #     visited = set()
-        #     loop_nodes = []
-
-        #     while current != goal:
-        #         if current in visited:
-        #             loop_nodes.append(current)
-        #             break
-
-        #         visited.add(current)
-        #         visited_node_counts[current] += 1
-
-        #         neighbors = list(graph.neighbors(current))
-        #         if not neighbors:
-        #             break
-
-        #         next_node = max(neighbors, key=lambda a: Q.get((current, a), float('-inf')))
-        #         temp_path.append(next_node)
-        #         current = next_node
-
-        #     # Record path length
-        #     if current == goal:
-        #         path_log.append((episode, len(temp_path)))
-        #     else:
-        #         path_log.append((episode, None))
-
+    #print(Q)
     # Extract path from learned Q-values
     path = [init]
     current = init
@@ -157,16 +122,6 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
         path.append(next_node)
         current = next_node
 
-    # enable this if logging!
-    # Save path length log for plotting
-    # with open("qlearning_path_log.txt", "w") as f:
-    #     for ep, plen in path_log:
-    #         f.write(f"{ep},{plen}\n")
-
-    # print("\nMost frequently visited nodes in greedy paths:")
-    # sorted_nodes = sorted(visited_node_counts.items(), key=lambda x: x[1], reverse=True)
-    # for node, count in sorted_nodes[:10]:
-    #     print(f"Node {node} visited {count} times")
 
     return path if current == goal else []
 
@@ -257,6 +212,10 @@ def Draw():
     draw_graph_edges(G, screen)
     p1index = find_closest_node(initial,G.nodes)
     p2index = find_closest_node(goal,G.nodes)
+    # Print edge cost/weight
+    # for (u,v,c) in G.edges().data():
+    #     print("Edge (" + str(u) + ", " + str(v) +"): " + str(c))
+
     if nx.has_path(G,p1index,p2index):
         t = time.time()
         if use_qlearning:
