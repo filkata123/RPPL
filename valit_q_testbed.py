@@ -74,10 +74,10 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
             if not neighbors:
                 break
 
-            #if random.random() < epsilon:
-            action = random.choice(neighbors)
-            # else:
-            #action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
+            if random.random() < epsilon:
+                action = random.choice(neighbors)
+            else:
+                action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
 
             cost = graph[state][action]['weight']
             next_state = action
