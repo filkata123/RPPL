@@ -12,7 +12,7 @@ from tkinter import *
 from rppl_globals import *
 from rppl_util import *
 from ast import literal_eval
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 dims = 20 # number of samples per axis
 radius = 2.5 # neightborhood radius (1 = four-neighbors)
@@ -59,6 +59,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
+    teleporting = False
     # decay_rate = 0.9999
 
     # Convergence criterion
@@ -70,9 +71,21 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
         max_delta = 0
         
         for _ in range(max_steps):
-            neighbors = list(graph.neighbors(state))
-            if not neighbors:
-                break
+            if(teleporting):
+                if random.random() < 0.01:
+                    state = random.choice(list(graph.nodes))
+
+                neighbors = list(graph.neighbors(state))
+                while not neighbors:
+                    print("No neighbors found.")
+                    state = random.choice(list(graph.nodes))
+                    print(state)
+                    neighbors = list(graph.neighbors(state))
+            else:
+                neighbors = list(graph.neighbors(state))
+                if not neighbors:
+                    print("No neighbors found.")
+                    break
 
             if random.random() < epsilon:
                 action = random.choice(neighbors)
