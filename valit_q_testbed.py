@@ -59,7 +59,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
-    teleporting = False
+    teleporting = False # TODO if true
     # decay_rate = 0.9999
 
     # Convergence criterion

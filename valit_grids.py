@@ -48,8 +48,8 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=1, initial_epsilon=1):
-    graph.add_edge(goal, goal, weight=0.0)
+def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999, gamma=0.999, initial_epsilon=1):
+    #graph.add_edge(goal, goal, weight=0.0)
     # Populate Q-table with zeros
     Q = {}
     for u in graph.nodes:
@@ -110,8 +110,8 @@ def q_learning_path(graph, init, goal, episodes=500, max_steps=1000, alpha=0.999
                 max_delta = delta
 
             state = next_state
-            # if state == goal:
-            #     break
+            if state == goal:
+                break
         
         # Convergence checks - is the policy stable?
         # new_policy = extract_policy(Q, graph)
