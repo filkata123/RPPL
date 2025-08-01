@@ -54,7 +54,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
     Q = {}
     for u in graph.nodes:
         for v in graph.neighbors(u):
-            Q[(u, v)] = 0.0
+            Q[(u, v)] = 1.0E7
 
     # path_log = []  # (episode, path_length)
     # log_interval = 500
