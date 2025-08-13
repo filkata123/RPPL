@@ -15,7 +15,7 @@ from ast import literal_eval
 from collections import defaultdict, Counter
 
 dims = 20 # number of samples per axis
-radius = 2.5 # neightborhood radius (1 = four-neighbors)
+radius = 1 # neightborhood radius (1 = four-neighbors)
 exnum = 2 # example number
 xmax = 800 # force a square environment
 
@@ -111,9 +111,9 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
                 break
         
         # If the values in the Q-table haven't changed by a lot, some sort of soft convergence has been reached
-        if max_delta < convergence_threshold:
-            print(f"Q-learning converged at episode {episode}")
-            break
+        # if max_delta < convergence_threshold:
+        #     print(f"Q-learning converged at episode {episode}")
+        #     break
         
         # for epsilon decay
         # epsilon = max(0.05, initial_epsilon * decay_rate**episode)
