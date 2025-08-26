@@ -55,7 +55,8 @@ def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_
     Q = {}
     for n in graph.nodes:
         for m in graph.neighbors(n):
-            Q[(n, m)] = "dc"
+            Q[(n, m)] = None # don't care value
+    Q[(goal, goal)] = 0.0 # termination action
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
@@ -69,24 +70,31 @@ def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_
             if not neighbors:
                 print("No neighbors found.")
                 break
-
+            
+            #TODO: derandomize?
             if random.random() < epsilon:
                 action = random.choice(neighbors)
             else:
-                action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
+                valid_neighbors = [a for a in neighbors if Q.get((state, a)) is not None]
+                action = min(valid_neighbors, key=lambda a: Q.get((state, a), 0.0)) if valid_neighbors else random.choice(neighbors)
 
             cost = graph[state][action]['weight']
             next_state = action
 
             next_neighbors = list(graph.neighbors(next_state))
-            min_q_next = min([Q.get((next_state, a), 1.0E10) for a in next_neighbors]) if next_neighbors else 0
+            valid_q_values = [Q[(next_state, a)] for a in next_neighbors if Q[(next_state, a)] is not None]
+            min_q_next = min(valid_q_values) if valid_q_values else None
 
-            Q[(state, action)] = cost + min_q_next
+            if min_q_next is None:
+                Q[(state, action)] = None
+            else:
+                Q[(state, action)] = cost + min_q_next
 
             state = next_state
             if state == goal:
                 break
-        
+    
+    #print(Q)
     # Extract path from learned Q-values
     path = [init]
     current = init
@@ -94,9 +102,11 @@ def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_
     while current != goal:
         visited.add(current)
         neighbors = list(graph.neighbors(current))
-        if not neighbors:
+        valid_neighbors = [a for a in neighbors if Q.get((current, a)) is not None]
+        if not valid_neighbors:
+            print("No valid neighbors found in Q-table. No path to goal available.")
             break
-        next_node = min(neighbors, key=lambda a: Q.get((current, a), float('inf')))
+        next_node = min(valid_neighbors, key=lambda a: Q.get((current, a), float('inf')))
         if next_node in visited:
             print("Loop detected in Q-table. No path to goal available.")
             break # avoid loops
@@ -336,7 +346,7 @@ def Draw():
     if nx.has_path(G,p1index,p2index):
         t = time.time()
         if use_qlearning:
-            path = q_learning_path(G, p1index, p2index)
+            path = q_learning_dc_path(G, p1index, p2index)
             print('Q-learning:   time elapsed:     ' + str(time.time() - t) + ' seconds')
         else:
             path = random_valit_path(G,p1index,p2index)
