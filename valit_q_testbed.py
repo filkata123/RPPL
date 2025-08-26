@@ -47,7 +47,7 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999, gamma=1, initial_epsilon=1):
+def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=1, gamma=1, initial_epsilon=1):
     # Add an edge from the goal state to itself with 0 weight (termination action)
     graph.add_edge(goal, goal, weight=0.0)
     
