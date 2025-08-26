@@ -47,6 +47,66 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
+def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_epsilon=1):
+    # Add an edge from the goal state to itself with 0 weight (termination action)
+    graph.add_edge(goal, goal, weight=0.0)
+    
+    # Populate Q-table with zeros - not a proper Q-table, since it's technically [state,state]
+    Q = {}
+    for n in graph.nodes:
+        for m in graph.neighbors(n):
+            Q[(n, m)] = "dc"
+    
+    # Epsilon decay
+    epsilon = 0.1 # = initial_epsilon
+
+    # Iteratively update Q-table values
+    for episode in range(episodes):
+        state = init
+        
+        for _ in range(max_steps):
+            neighbors = list(graph.neighbors(state))
+            if not neighbors:
+                print("No neighbors found.")
+                break
+
+            if random.random() < epsilon:
+                action = random.choice(neighbors)
+            else:
+                action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
+
+            cost = graph[state][action]['weight']
+            next_state = action
+
+            next_neighbors = list(graph.neighbors(next_state))
+            min_q_next = min([Q.get((next_state, a), 1.0E10) for a in next_neighbors]) if next_neighbors else 0
+
+            Q[(state, action)] = cost + min_q_next
+
+            state = next_state
+            if state == goal:
+                break
+        
+    # Extract path from learned Q-values
+    path = [init]
+    current = init
+    visited = set()
+    while current != goal:
+        visited.add(current)
+        neighbors = list(graph.neighbors(current))
+        if not neighbors:
+            break
+        next_node = min(neighbors, key=lambda a: Q.get((current, a), float('inf')))
+        if next_node in visited:
+            print("Loop detected in Q-table. No path to goal available.")
+            break # avoid loops
+        path.append(next_node)
+        current = next_node
+
+
+    return path if current == goal else []
+
+# Compute solution path from Q-table
 def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=1, gamma=1, initial_epsilon=1):
     # Add an edge from the goal state to itself with 0 weight (termination action)
     graph.add_edge(goal, goal, weight=0.0)
