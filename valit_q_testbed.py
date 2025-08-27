@@ -47,9 +47,10 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_epsilon=1):
-    # Add an edge from the goal state to itself with 0 weight (termination action)
-    graph.add_edge(goal, goal, weight=0.0)
+def q_learning_dc_path(graph, init, goal, episodes=10000, max_steps=5000, initial_epsilon=1):
+    # Add an edge from the state to itself with 0 weight (stay cost)
+    for n in graph.nodes:
+        graph.add_edge(n, n, weight=0.0)
     
     # Populate Q-table with zeros - not a proper Q-table, since it's technically [state,state]
     Q = {}
@@ -57,6 +58,7 @@ def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_
         for m in graph.neighbors(n):
             Q[(n, m)] = None # don't care value
     Q[(goal, goal)] = 0.0 # termination action
+
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
@@ -71,7 +73,7 @@ def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_
                 print("No neighbors found.")
                 break
             
-            #TODO: derandomize?
+            #TODO: Use digits of Pi in base n, where n = |actions| (sagemath)
             if random.random() < epsilon:
                 action = random.choice(neighbors)
             else:
@@ -85,9 +87,7 @@ def q_learning_dc_path(graph, init, goal, episodes=1000, max_steps=500, initial_
             valid_q_values = [Q[(next_state, a)] for a in next_neighbors if Q[(next_state, a)] is not None]
             min_q_next = min(valid_q_values) if valid_q_values else None
 
-            if min_q_next is None:
-                Q[(state, action)] = None
-            else:
+            if min_q_next is not None:
                 Q[(state, action)] = cost + min_q_next
 
             state = next_state

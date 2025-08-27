@@ -28,6 +28,9 @@ pygame.display.set_caption('Grid Planner')
 failure_cost = 1.0E30
 max_valits = 1000
 
+chooser = PiChooser("pi1k_base4.txt")
+deterministic = True
+
 
 def find_closest_node(mpos,nodes):
     a = [dist2(mpos, nodes[0]['point']),0]
@@ -92,7 +95,10 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
                 break
 
             if random.random() < epsilon:
-                action = random.choice(neighbors)
+                if deterministic:
+                    action = chooser.choose(neighbors)
+                else:
+                    action = random.choice(neighbors)
             else:
                 action = max(neighbors, key=lambda a: Q.get((state, a), 0))
 

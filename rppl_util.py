@@ -121,3 +121,23 @@ def fix_angle(theta):
     if theta > 2 * pi:
         return theta - 2 * pi
     return theta
+
+# Chooser that uses digits of Pi to make choices. Works for any base up to 10.
+class PiChooser:
+    def __init__(self, filename):
+        # Load pi digits from file
+        with open(filename, "r") as f:
+            self.pi_digits = f.read().strip()
+        self.index = 0  # keep track of which digit we’re on
+
+    def choose(self, neighbors):
+        if not neighbors:
+            return None
+
+        # Get next digit from pi (cycle back if at end)
+        digit = int(self.pi_digits[self.index])
+        self.index = (self.index + 1) % len(self.pi_digits)
+
+        # Use digit to pick a neighbor
+        choice = neighbors[digit % len(neighbors)]
+        return choice
