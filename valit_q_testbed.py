@@ -254,13 +254,13 @@ def random_valit_path(graph, init, goal):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
+        set_node_attributes(graph, {n:False}, 'updated') # has the node been visited
     set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action, although it is not an action to speak of.
     
     # main loop
     i = 0
-    max_change = failure_cost
-    while i < max_valits: #and max_change > 0.0:
-        max_change = 0.0
+    nodes_updated = nx.get_node_attributes(graph, "updated")
+    while i < max_valits:
         for m in graph.nodes:
             if not list(graph.neighbors(m)):
                 continue 
@@ -275,10 +275,15 @@ def random_valit_path(graph, init, goal):
                 best_n = n
             stay_cost = graph.nodes[m]['value']
             if best_cost < stay_cost:
-                if stay_cost - best_cost > max_change:
-                    max_change = stay_cost - best_cost
+                current = graph.nodes[m].get('updated', None)
+                set_node_attributes(graph, {m:not current}, 'updated')
                 set_node_attributes(graph, {m:best_cost}, 'value')
                 set_node_attributes(graph, {m:best_n}, 'next')
+        if i != 0 and i % 50 == 0: # TODO: Can be optimized with statistics? If the node has 4 actions how many times do we need to visit it so that we are sure that all actions have been tried?
+            new_nodes_updated =  nx.get_node_attributes(graph, "updated")
+            if nodes_updated == new_nodes_updated:
+                break
+            nodes_updated = new_nodes_updated
         i += 1
     path = []
     if graph.nodes[init]['value'] < failure_cost:
