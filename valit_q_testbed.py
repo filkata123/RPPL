@@ -113,6 +113,8 @@ def q_learning_dc_path(graph, init, goal, episodes=10000, max_steps=5000, initia
         path.append(next_node)
         current = next_node
 
+    for n in graph.nodes:
+        graph.remove_edge(n, n) # clean up self-loops TODO: test!
 
     return path if current == goal else []
 
@@ -205,7 +207,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=1, ga
         path.append(next_node)
         current = next_node
 
-
+    graph.remove_edge(goal, goal) # clean up self-loop at goal TODO: test!
     return path if current == goal else []
 
 # Compute the stationary cost-to-go function and return a solution path.
@@ -299,6 +301,60 @@ def random_valit_path(graph, init, goal):
     print("Stages: " + str(i))
     return path
 
+def prob_valit(graph, init, goal, prob):
+    # initialize values
+    for n in graph.nodes:
+        set_node_attributes(graph, {n:failure_cost}, 'value')
+    set_node_attributes(graph, {goal:0.0}, 'value')
+    
+    # main loop
+    i = 0
+    max_change = failure_cost
+    while i < max_valits and max_change > 1e-6:
+        max_change = 0.0
+        for m in graph.nodes:
+            best_cost = failure_cost
+            best_n = m
+            
+            for n in graph.neighbors(m):
+                cost = graph.nodes[n]['value'] * prob # multiply by chosen probability
+
+                # # Get edge count minus first action
+                k = len(list(graph.neighbors(m))) - 1
+                # sum up expected costs and multiply by updated chosen probability
+                for o in graph.neighbors(m):
+                    if o != n: #make sure that the current node is not taken into account
+                        cost = cost + graph.nodes[o]['value'] * (1-prob) / k
+
+                # add weight to summed up cost    
+                step_cost = graph.get_edge_data(n,m)['weight']
+                cost = cost + step_cost
+
+                if cost < best_cost:
+                    best_cost = cost
+                    best_n = n
+            stay_cost = graph.nodes[m]['value']
+            if best_cost < stay_cost:
+                if stay_cost - best_cost > max_change:
+                    max_change = stay_cost - best_cost
+                set_node_attributes(graph, {m:best_cost}, 'value')
+                set_node_attributes(graph, {m:best_n}, 'next')
+        i += 1
+    path = []
+    #TODO: currently I apply probability to the value iteration, but there is no probability in the path extraction. Since the actual graph is deterministic, what am I doing then?
+    if graph.nodes[init]['value'] < failure_cost:
+        path.append(init)
+        goal_reached = False
+        current_node = init
+        while not goal_reached:
+            nn = graph.nodes[current_node]['next']
+            path.append(nn)
+            current_node = nn
+            if nn == goal:
+                goal_reached = True
+    print("Stages: " + str(i))
+    return path
+
 # This corresponds to GUI button 'Draw' that runs the example.
 def Draw():
     obstacles = literal_eval(problines[exnum*3])
@@ -354,7 +410,7 @@ def Draw():
             path = q_learning_dc_path(G, p1index, p2index)
             print('Q-learning:   time elapsed:     ' + str(time.time() - t) + ' seconds')
         else:
-            path = random_valit_path(G,p1index,p2index)
+            path = prob_valit(G,p1index,p2index, 0.8)
             print('value iteration: time elapsed: ' + str(time.time() - t) + ' seconds')
         print("Shortest path: " + str(len(path)))
         for l in range(len(path)):
