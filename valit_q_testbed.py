@@ -310,7 +310,7 @@ def prob_valit(graph, init, goal, prob):
     # main loop
     i = 0
     max_change = failure_cost
-    while i < max_valits and max_change > 1e-6:
+    while i < max_valits and max_change > 0.0:
         max_change = 0.0
         for m in graph.nodes:
             best_cost = failure_cost
@@ -346,8 +346,13 @@ def prob_valit(graph, init, goal, prob):
         path.append(init)
         goal_reached = False
         current_node = init
+        visited = set()
         while not goal_reached:
+            visited.add(current_node)
             nn = graph.nodes[current_node]['next']
+            if nn in visited:
+                print("Loop detected. No path to goal available.")
+                break # avoid loops
             path.append(nn)
             current_node = nn
             if nn == goal:
