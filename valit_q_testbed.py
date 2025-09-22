@@ -47,7 +47,7 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_dc_path(graph, init, goal, episodes=10000, max_steps=5000, initial_epsilon=1):
+def q_learning_dc_path(graph, init, goal_region, episodes=10000, max_steps=5000, initial_epsilon=1):
     # Add an edge from the state to itself with 0 weight (stay cost)
     for n in graph.nodes:
         graph.add_edge(n, n, weight=0.0)
@@ -57,7 +57,8 @@ def q_learning_dc_path(graph, init, goal, episodes=10000, max_steps=5000, initia
     for n in graph.nodes:
         for m in graph.neighbors(n):
             Q[(n, m)] = None # don't care value
-    Q[(goal, goal)] = 0.0 # termination action
+    for goal in goal_region:
+        Q[(goal, goal)] = 0.0 # termination action
 
     
     # Epsilon decay
@@ -91,7 +92,7 @@ def q_learning_dc_path(graph, init, goal, episodes=10000, max_steps=5000, initia
                 Q[(state, action)] = cost + min_q_next
 
             state = next_state
-            if state == goal:
+            if state in goal_region:
                 break
     
     #print(Q)
@@ -99,7 +100,7 @@ def q_learning_dc_path(graph, init, goal, episodes=10000, max_steps=5000, initia
     path = [init]
     current = init
     visited = set()
-    while current != goal:
+    while current not in goal_region:
         visited.add(current)
         neighbors = list(graph.neighbors(current))
         valid_neighbors = [a for a in neighbors if Q.get((current, a)) is not None]
@@ -114,20 +115,22 @@ def q_learning_dc_path(graph, init, goal, episodes=10000, max_steps=5000, initia
         current = next_node
 
     for n in graph.nodes:
-        graph.remove_edge(n, n) # clean up self-loops TODO: test!
+        graph.remove_edge(n, n) # clean up self-loops
 
-    return path if current == goal else []
+    return path if current in goal_region else []
 
 # Compute solution path from Q-table
-def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=1, gamma=1, initial_epsilon=1):
+def q_learning_path(graph, init, goal_region, episodes=1000, max_steps=500, alpha=1, gamma=1, initial_epsilon=1):
     # Add an edge from the goal state to itself with 0 weight (termination action)
-    graph.add_edge(goal, goal, weight=0.0)
+    for goal in goal_region:
+        graph.add_edge(goal, goal, weight=0.0)
     
     # Populate Q-table with zeros - not a proper Q-table, since it's technically [state,state]
     Q = {}
     for n in graph.nodes:
         for m in graph.neighbors(n):
             Q[(n, m)] = 1.0E7 # TODO: investigate value, very sensitive to it
+    #TODO: shouldn't we add a Q-table entry for goal, goal as in dc version?
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
@@ -179,7 +182,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=1, ga
                 max_delta = delta
 
             state = next_state
-            if state == goal:
+            if state in goal_region:
                 break
         
         # If the values in the Q-table haven't changed by a lot, some sort of soft convergence has been reached
@@ -195,7 +198,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=1, ga
     path = [init]
     current = init
     visited = set()
-    while current != goal:
+    while current not in goal_region:
         visited.add(current)
         neighbors = list(graph.neighbors(current))
         if not neighbors:
@@ -206,16 +209,17 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=1, ga
             break # avoid loops
         path.append(next_node)
         current = next_node
-
-    graph.remove_edge(goal, goal) # clean up self-loop at goal TODO: test!
-    return path if current == goal else []
+    for goal in goal_region:
+        graph.remove_edge(goal, goal) # clean up self-loop at goal TODO: test!
+    return path if current in goal_region else []
 
 # Compute the stationary cost-to-go function and return a solution path.
-def valit_path(graph, init, goal):
+def valit_path(graph, init, goal_region):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
-    set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action, although it is not an action to speak of.
+    for goal in goal_region:
+        set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action, although it is not an action to speak of.
     
     # main loop
     i = 0
@@ -247,17 +251,18 @@ def valit_path(graph, init, goal):
             nn = graph.nodes[current_node]['next']
             path.append(nn)
             current_node = nn
-            if nn == goal:
+            if nn in goal_region:
                 goal_reached = True
     print("Stages: " + str(i))
     return path
 
-def random_valit_path(graph, init, goal):
+def random_valit_path(graph, init, goal_region):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
         set_node_attributes(graph, {n:False}, 'updated') # has the node been visited
-    set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action, although it is not an action to speak of.
+    for goal in goal_region:
+        set_node_attributes(graph, {goal:0.0}, 'value') # This is the termination action, although it is not an action to speak of.
     
     # main loop
     i = 0
@@ -296,16 +301,17 @@ def random_valit_path(graph, init, goal):
             nn = graph.nodes[current_node]['next']
             path.append(nn)
             current_node = nn
-            if nn == goal:
+            if nn in goal_region:
                 goal_reached = True
     print("Stages: " + str(i))
     return path
 
-def prob_valit(graph, init, goal, prob):
+def prob_valit(graph, init, goal_region, prob):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
-    set_node_attributes(graph, {goal:0.0}, 'value')
+    for goal in goal_region:
+        set_node_attributes(graph, {goal:0.0}, 'value')
     
     # main loop
     i = 0
@@ -355,7 +361,7 @@ def prob_valit(graph, init, goal, prob):
                 break # avoid loops
             path.append(nn)
             current_node = nn
-            if nn == goal:
+            if nn in goal_region:
                 goal_reached = True
     print("Stages: " + str(i))
     return path
@@ -409,13 +415,18 @@ def Draw():
     # for (u,v,c) in G.edges().data():
     #     print("Edge (" + str(u) + ", " + str(v) +"): " + str(c))
 
+    # Use a radius parameter to find the neighbors that will define the goal region
+    goal_radius = 2
+    goal_indices = list(nx.single_source_shortest_path_length(G, p2index, cutoff=goal_radius).keys())
+
+    #Since the graph is undirected, this is equivalent to checking if there is a path from p1index to any of the goal_indices
     if nx.has_path(G,p1index,p2index):
         t = time.time()
         if use_qlearning:
-            path = q_learning_dc_path(G, p1index, p2index)
+            path = q_learning_dc_path(G, p1index, goal_indices)
             print('Q-learning:   time elapsed:     ' + str(time.time() - t) + ' seconds')
         else:
-            path = prob_valit(G,p1index,p2index, 0.8)
+            path = prob_valit(G,p1index,goal_indices, 0.8)
             print('value iteration: time elapsed: ' + str(time.time() - t) + ' seconds')
         print("Shortest path: " + str(len(path)))
         for l in range(len(path)):
@@ -426,8 +437,12 @@ def Draw():
     else:
         print('Path not found')
         pygame.display.set_caption('Grid Planner')
-    pygame.draw.circle(screen,green,initial,10)
-    pygame.draw.circle(screen,red,goal,10)
+    pygame.draw.circle(screen,green,G.nodes[p1index]['point'],10)
+    for g in goal_indices:
+        pygame.draw.circle(screen,red,G.nodes[g]['point'],10)
+    # Old implementation of visualization
+    #pygame.draw.circle(screen,green,initial,10)
+    #pygame.draw.circle(screen,red,goal,10)
     pygame.display.update()
 
 # get example list
