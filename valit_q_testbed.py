@@ -306,7 +306,17 @@ def random_valit_path(graph, init, goal_region):
     print("Stages: " + str(i))
     return path
 
-def prob_valit(graph, init, goal_region, prob):
+def probability_model(num_neigbors):
+    prob_success = 0.9
+    if num_neigbors > 1:
+        prob_stay = 0.05
+        prob_other = (1 - prob_success - prob_stay) / (num_neigbors - 1) # we should not include the edge we want to take
+    else:
+        prob_stay = 0.1
+        prob_other = 0.0
+    return prob_success, prob_stay, prob_other
+
+def prob_valit(graph, init, goal_region):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
@@ -323,14 +333,16 @@ def prob_valit(graph, init, goal_region, prob):
             best_n = m
             
             for n in graph.neighbors(m):
-                cost = graph.nodes[n]['value'] * prob # multiply by chosen probability
+                # Get edge count
+                prob_success, prob_stay, prob_other = probability_model(len(list(graph.neighbors(m))))
+                
+                cost = graph.nodes[n]['value'] * prob_success # multiply by success probability
+                cost = cost + graph.nodes[m]['value'] * prob_stay # multiply by stay probability
 
-                # # Get edge count minus first action
-                k = len(list(graph.neighbors(m))) - 1
                 # sum up expected costs and multiply by updated chosen probability
                 for o in graph.neighbors(m):
                     if o != n: #make sure that the current node is not taken into account
-                        cost = cost + graph.nodes[o]['value'] * (1-prob) / k
+                        cost = cost + graph.nodes[o]['value'] * prob_other
 
                 # add weight to summed up cost    
                 step_cost = graph.get_edge_data(n,m)['weight']
@@ -347,18 +359,26 @@ def prob_valit(graph, init, goal_region, prob):
                 set_node_attributes(graph, {m:best_n}, 'next')
         i += 1
     path = []
-    #TODO: currently I apply probability to the value iteration, but there is no probability in the path extraction. Since the actual graph is deterministic, what am I doing then?
     if graph.nodes[init]['value'] < failure_cost:
         path.append(init)
         goal_reached = False
         current_node = init
-        visited = set()
         while not goal_reached:
-            visited.add(current_node)
-            nn = graph.nodes[current_node]['next']
-            if nn in visited:
-                print("Loop detected. No path to goal available.")
-                break # avoid loops
+            desired = graph.nodes[current_node]['next'] # select our desired node
+            prob_success, prob_stay, prob_other = probability_model(len(list(graph.neighbors(current_node)))) # get probabilities
+            choice = random.random()
+            if choice <= prob_success:
+                nn = desired # successful transition
+            elif choice > prob_success and choice <= prob_success + prob_stay:
+                nn = current_node # stay
+            else:
+                current_range = prob_success + prob_stay
+                for o in graph.neighbors(current_node):
+                    if o != desired: # make sure that the desired node is not taken into account
+                        if choice > current_range and choice <= current_range + prob_other:
+                            nn = o
+                            break
+                        else: current_range += prob_other
             path.append(nn)
             current_node = nn
             if nn in goal_region:
@@ -426,13 +446,14 @@ def Draw():
             path = q_learning_dc_path(G, p1index, goal_indices)
             print('Q-learning:   time elapsed:     ' + str(time.time() - t) + ' seconds')
         else:
-            path = prob_valit(G,p1index,goal_indices, 0.8)
+            path = prob_valit(G,p1index,goal_indices)
             print('value iteration: time elapsed: ' + str(time.time() - t) + ' seconds')
         print("Shortest path: " + str(len(path)))
         for l in range(len(path)):
             if l > 0:
                 pygame.draw.line(screen,green,G.nodes[path[l]]['point'],G.nodes[path[l-1]]['point'],5)
-                length += G.get_edge_data(path[l],path[l-1])['weight']
+                if G.get_edge_data(path[l],path[l-1]) is not None: # When there are loops, there is no weight in some cases
+                    length += G.get_edge_data(path[l],path[l-1])['weight']
         pygame.display.set_caption('Grid Planner, Euclidean Distance: ' +str(length))
     else:
         print('Path not found')
