@@ -29,7 +29,7 @@ failure_cost = 1.0E30
 max_valits = 1000
 
 chooser = PiChooser("pi1k_base4.txt")
-deterministic = True
+deterministic = False
 
 
 def find_closest_node(mpos,nodes):
@@ -59,29 +59,12 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
         for v in graph.neighbors(u):
             Q[(u, v)] = 1.0E7
 
-    # path_log = []  # (episode, path_length)
-    # log_interval = 500
-    # visited_node_counts = defaultdict(int)
-
-    # Extract the best current policy (list of actions)
-    # def extract_policy(Q, graph):
-    #     policy = {}
-    #     for state in graph.nodes:
-    #         actions = list(graph.neighbors(state))
-    #         if actions:
-    #             best_action = max(actions, key=lambda a: Q.get((state, a), float('-inf')))
-    #             policy[state] = best_action
-    #     return policy
-    
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
     # decay_rate = 0.9999
 
     # Convergence criterion
     convergence_threshold = 1e-4
-    # policy_stable_target = 10
-    # policy_stable_count = 0
-    # old_policy = extract_policy(Q, graph)
 
     # Iteratively update Q-table values
     for episode in range(episodes):
@@ -120,50 +103,14 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
             if state == goal:
                 break
         
-        # Convergence checks - is the policy stable?
-        # new_policy = extract_policy(Q, graph)
-        # if new_policy == old_policy:
-        #     policy_stable_count += 1
-        # else:
-        #     policy_stable_count = 0
-        # old_policy = new_policy
 
-        # If the values in the Q-table haven't changed by a lot (DISABLED: or if the policy has stablised), some sort of soft convergence has been reached
-        if max_delta < convergence_threshold: #and policy_stable_count >= policy_stable_target:
-            print(f"Q-learning converged at episode {episode}")
-            break
+        # If the values in the Q-table haven't changed by a lot, some sort of soft convergence has been reached
+        # if max_delta < convergence_threshold: 
+        #     print(f"Q-learning converged at episode {episode}")
+        #     break
         
         # for epsilon decay
         # epsilon = max(0.05, initial_epsilon * decay_rate**episode)
-
-        # Logging
-        # if episode % log_interval == 0 or episode == episodes - 1:
-        #     temp_path = [init]
-        #     current = init
-        #     visited = set()
-        #     loop_nodes = []
-
-        #     while current != goal:
-        #         if current in visited:
-        #             loop_nodes.append(current)
-        #             break
-
-        #         visited.add(current)
-        #         visited_node_counts[current] += 1
-
-        #         neighbors = list(graph.neighbors(current))
-        #         if not neighbors:
-        #             break
-
-        #         next_node = max(neighbors, key=lambda a: Q.get((current, a), float('-inf')))
-        #         temp_path.append(next_node)
-        #         current = next_node
-
-        #     # Record path length
-        #     if current == goal:
-        #         path_log.append((episode, len(temp_path)))
-        #     else:
-        #         path_log.append((episode, None))
 
 
     # Extract path from learned Q-values
@@ -181,18 +128,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
             break  # avoid loops
         path.append(next_node)
         current = next_node
-
-    # enable this if logging!
-    # Save path length log for plotting
-    # with open("qlearning_path_log.txt", "w") as f:
-    #     for ep, plen in path_log:
-    #         f.write(f"{ep},{plen}\n")
-
-    # print("\nMost frequently visited nodes in greedy paths:")
-    # sorted_nodes = sorted(visited_node_counts.items(), key=lambda x: x[1], reverse=True)
-    # for node, count in sorted_nodes[:10]:
-    #     print(f"Node {node} visited {count} times")
-
+    #graph.remove_edge(goal, goal) # clean up self-loop at goal
     return path if current == goal else []
 
 # Compute the stationary cost-to-go function and return a solution path.

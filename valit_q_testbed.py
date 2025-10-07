@@ -47,7 +47,92 @@ def generate_neighborhood_indices(radius):
     return neighbors
 
 # Compute solution path from Q-table
-def q_learning_dc_path(graph, init, goal_region, episodes=10000, max_steps=5000, initial_epsilon=1):
+def q_learning_stochastic_path(graph, init, goal_region, episodes=1000, max_steps=500, alpha=1, gamma=1, initial_epsilon=1):
+    # Add an edge from the goal state to itself with 0 weight (termination action)
+    for goal in goal_region:
+        graph.add_edge(goal, goal, weight=0.0)
+    
+    # Populate Q-table with zeros - not a proper Q-table, since it's technically [state,state]
+    Q = {}
+    for n in graph.nodes:
+        for m in graph.neighbors(n):
+            Q[(n, m)] = -1.0E7 # TODO: investigate value, very sensitive to it
+    
+    # Epsilon decay
+    epsilon = 0.1 # = initial_epsilon
+
+    # Convergence criterion
+    convergence_threshold = 1e-4
+
+    # Iteratively update Q-table values
+    for episode in range(episodes):
+        state = init
+        max_delta = 0
+        
+        for _ in range(max_steps):
+            neighbors = list(graph.neighbors(state))
+            if not neighbors:
+                print("No neighbors found.")
+                break
+
+            if random.random() < epsilon:
+                action = random.choice(neighbors) # in this case, the random action takes into account the stochasticity of the environment
+            else:
+                action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
+            cost = graph[state][action]['weight']
+            next_state = action
+
+            next_neighbors = list(graph.neighbors(next_state))
+            min_q_next = min([Q.get((next_state, a), 1.0E10) for a in next_neighbors]) if next_neighbors else 0
+
+            old_q = Q[(state, action)]
+            Q[(state, action)] = (1-alpha)*Q[(state, action)] + alpha * (cost + gamma * min_q_next)
+
+            # Track maximum absolute change in Q-values per episodes
+            delta = abs(Q[(state, action)] - old_q)
+            if delta > max_delta:
+                max_delta = delta
+
+            state = next_state
+            if state in goal_region:
+                break
+        
+        # If the values in the Q-table haven't changed by a lot, some sort of soft convergence has been reached
+        if max_delta < convergence_threshold:
+            #print(f"Q-learning converged at episode {episode}")
+            break
+
+    # Extract path from learned Q-values
+    path = [init]
+    current = init
+    while current not in goal_region:
+        neighbors = list(graph.neighbors(current))
+        if not neighbors:
+            print("No neighbors found.")
+            break
+        desired = min(neighbors, key=lambda a: Q.get((current, a), float('inf')))
+        prob_success, prob_stay, prob_other = probability_model(len(list(graph.neighbors(current)))) # get probabilities
+        choice = random.random()
+        if choice <= prob_success:
+            next_node = desired # successful transition
+        elif choice > prob_success and choice <= prob_success + prob_stay:
+            next_node = current # stay
+        else:
+            current_range = prob_success + prob_stay
+            for o in graph.neighbors(current):
+                if o != desired: # make sure that the desired node is not taken into account
+                    if choice > current_range and choice <= current_range + prob_other:
+                        next_node = o
+                        break
+                    else: current_range += prob_other
+        path.append(next_node)
+        current = next_node
+    for goal in goal_region:
+        graph.remove_edge(goal, goal) # clean up self-loop at goal
+    return path if current in goal_region else []
+
+# Compute solution path from Q-table
+def q_learning_dc_path(graph, init, goal_region, episodes=15000, max_steps=5000, initial_epsilon=1):
     # Add an edge from the state to itself with 0 weight (stay cost)
     for n in graph.nodes:
         graph.add_edge(n, n, weight=0.0)
@@ -58,7 +143,7 @@ def q_learning_dc_path(graph, init, goal_region, episodes=10000, max_steps=5000,
         for m in graph.neighbors(n):
             Q[(n, m)] = None # don't care value
     for goal in goal_region:
-        Q[(goal, goal)] = 0.0 # termination action
+        Q[(goal, goal)] = 0.0 # goal state attractor. Works only in DC q-learning here since it's better than all other values.
 
     
     # Epsilon decay
@@ -129,13 +214,10 @@ def q_learning_path(graph, init, goal_region, episodes=1000, max_steps=500, alph
     Q = {}
     for n in graph.nodes:
         for m in graph.neighbors(n):
-            Q[(n, m)] = 1.0E7 # TODO: investigate value, very sensitive to it
-    #TODO: shouldn't we add a Q-table entry for goal, goal as in dc version?
+            Q[(n, m)] = 0 # TODO: investigate value, very sensitive to it
     
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon
-    teleporting = False # TODO if true
-    # decay_rate = 0.9999
 
     # Convergence criterion
     convergence_threshold = 1e-4
@@ -146,26 +228,16 @@ def q_learning_path(graph, init, goal_region, episodes=1000, max_steps=500, alph
         max_delta = 0
         
         for _ in range(max_steps):
-            if(teleporting):
-                if random.random() < 0.01:
-                    state = random.choice(list(graph.nodes))
-
-                neighbors = list(graph.neighbors(state))
-                while not neighbors:
-                    print("No neighbors found.")
-                    state = random.choice(list(graph.nodes))
-                    print(state)
-                    neighbors = list(graph.neighbors(state))
-            else:
-                neighbors = list(graph.neighbors(state))
-                if not neighbors:
-                    print("No neighbors found.")
-                    break
+            neighbors = list(graph.neighbors(state))
+            if not neighbors:
+                print("No neighbors found.")
+                break
 
             if random.random() < epsilon:
                 action = random.choice(neighbors)
             else:
                 action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
+            #action = min(neighbors, key=lambda a: Q.get((state, a), 0.0))
 
             cost = graph[state][action]['weight']
             next_state = action
@@ -189,9 +261,6 @@ def q_learning_path(graph, init, goal_region, episodes=1000, max_steps=500, alph
         # if max_delta < convergence_threshold:
         #     print(f"Q-learning converged at episode {episode}")
         #     break
-        
-        # for epsilon decay
-        # epsilon = max(0.05, initial_epsilon * decay_rate**episode)
 
     #print(Q)
     # Extract path from learned Q-values
@@ -210,7 +279,7 @@ def q_learning_path(graph, init, goal_region, episodes=1000, max_steps=500, alph
         path.append(next_node)
         current = next_node
     for goal in goal_region:
-        graph.remove_edge(goal, goal) # clean up self-loop at goal TODO: test!
+        graph.remove_edge(goal, goal) # clean up self-loop at goal
     return path if current in goal_region else []
 
 # Compute the stationary cost-to-go function and return a solution path.
@@ -358,6 +427,8 @@ def prob_valit(graph, init, goal_region):
                 set_node_attributes(graph, {m:best_cost}, 'value')
                 set_node_attributes(graph, {m:best_n}, 'next')
         i += 1
+    
+    #print(nx.get_node_attributes(graph, 'value'))
     path = []
     if graph.nodes[init]['value'] < failure_cost:
         path.append(init)
@@ -436,14 +507,14 @@ def Draw():
     #     print("Edge (" + str(u) + ", " + str(v) +"): " + str(c))
 
     # Use a radius parameter to find the neighbors that will define the goal region
-    goal_radius = 2
+    goal_radius = 0
     goal_indices = list(nx.single_source_shortest_path_length(G, p2index, cutoff=goal_radius).keys())
 
     #Since the graph is undirected, this is equivalent to checking if there is a path from p1index to any of the goal_indices
     if nx.has_path(G,p1index,p2index):
         t = time.time()
         if use_qlearning:
-            path = q_learning_dc_path(G, p1index, goal_indices)
+            path = q_learning_path(G, p1index, goal_indices)
             print('Q-learning:   time elapsed:     ' + str(time.time() - t) + ' seconds')
         else:
             path = prob_valit(G,p1index,goal_indices)
@@ -465,6 +536,7 @@ def Draw():
     #pygame.draw.circle(screen,green,initial,10)
     #pygame.draw.circle(screen,red,goal,10)
     pygame.display.update()
+    #pygame.image.save(screen, "screenshot.png")
 
 # get example list
 problem = open('problem_circles.txt')
