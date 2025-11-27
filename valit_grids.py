@@ -57,7 +57,7 @@ def q_learning_path(graph, init, goal, episodes=1000, max_steps=500, alpha=0.999
     Q = {}
     for u in graph.nodes:
         for v in graph.neighbors(u):
-            Q[(u, v)] = 1.0E7
+            Q[(u, v)] = -1.0E4
 
     # Epsilon decay
     epsilon = 0.1 # = initial_epsilon

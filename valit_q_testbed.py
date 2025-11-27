@@ -160,11 +160,11 @@ def q_learning_dc_path(graph, init, goal_region, episodes=15000, max_steps=5000,
                 break
             
             #TODO: Use digits of Pi in base n, where n = |actions| (sagemath)
-            if random.random() < epsilon:
-                action = random.choice(neighbors)
-            else:
-                valid_neighbors = [a for a in neighbors if Q.get((state, a)) is not None]
-                action = min(valid_neighbors, key=lambda a: Q.get((state, a), 0.0)) if valid_neighbors else random.choice(neighbors)
+            # if random.random() < epsilon:
+            #     action = random.choice(neighbors)
+            # else:
+            valid_neighbors = [a for a in neighbors if Q.get((state, a)) is not None]
+            action = min(valid_neighbors, key=lambda a: Q.get((state, a), 0.0)) if valid_neighbors else random.choice(neighbors)
 
             cost = graph[state][action]['weight']
             next_state = action
@@ -325,7 +325,7 @@ def valit_path(graph, init, goal_region):
     print("Stages: " + str(i))
     return path
 
-def random_valit_path(graph, init, goal_region):
+def random_valit_path(graph, init, goal_region, epsilon_greedy = False):
     # initialize values
     for n in graph.nodes:
         set_node_attributes(graph, {n:failure_cost}, 'value')
@@ -340,15 +340,24 @@ def random_valit_path(graph, init, goal_region):
         for m in graph.nodes:
             if not list(graph.neighbors(m)):
                 continue 
-            n = random.choice(list(graph.neighbors(m)))
-            step_cost = graph.get_edge_data(n,m)['weight']
-            cost = graph.nodes[n]['value'] + step_cost
+            if not epsilon_greedy:
+                chosen_n = random.choice(list(graph.neighbors(m)))
+            else:
+                if random.random() < 0.1:
+                    chosen_n = random.choice(list(graph.neighbors(m)))
+                else:
+                    chosen_n = min(
+                        graph.neighbors(m),
+                        key=lambda n: graph.nodes[n]["value"] + graph.get_edge_data(n,m)['weight']
+                    )
+            step_cost = graph.get_edge_data(chosen_n,m)['weight']
+            cost = graph.nodes[chosen_n]['value'] + step_cost
 
             best_cost = failure_cost
             best_n = m
             if cost < best_cost:
                 best_cost = cost
-                best_n = n
+                best_n = chosen_n
             stay_cost = graph.nodes[m]['value']
             if best_cost < stay_cost:
                 current = graph.nodes[m].get('updated', None)
@@ -514,10 +523,10 @@ def Draw():
     if nx.has_path(G,p1index,p2index):
         t = time.time()
         if use_qlearning:
-            path = q_learning_path(G, p1index, goal_indices)
+            path = q_learning_dc_path(G, p1index, goal_indices)
             print('Q-learning:   time elapsed:     ' + str(time.time() - t) + ' seconds')
         else:
-            path = prob_valit(G,p1index,goal_indices)
+            path = random_valit_path(G,p1index,goal_indices, True)
             print('value iteration: time elapsed: ' + str(time.time() - t) + ' seconds')
         print("Shortest path: " + str(len(path)))
         for l in range(len(path)):
